@@ -4,7 +4,16 @@ const cors = require('cors');
 
 const app = express();
 
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174')
+  .split(',').map(o => o.trim());
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -18,5 +27,9 @@ app.use((err, req, res, _next) => {
   res.status(500).json({ message: err.message || 'Error interno del servidor' });
 });
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`CEAR backend corriendo en http://localhost:${PORT}`));
+if (require.main === module) {
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => console.log(`CEAR backend corriendo en http://localhost:${PORT}`));
+}
+
+module.exports = app;
