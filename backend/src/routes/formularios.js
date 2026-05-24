@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const multer = require('multer');
 const nodemailer = require('nodemailer');
-const pool = require('../config/db');
+const supabase = require('../config/db');
 const { authMiddleware } = require('../middleware/auth');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -43,11 +43,20 @@ function buildHtml(titulo, cliente, numeroPoliza, campos) {
 }
 
 async function getPolizaVigente(usuarioId, tipo) {
-  const [rows] = await pool.query(
-    `SELECT * FROM polizas WHERE usuario_id=? AND tipo=? AND fecha_inicio<=CURDATE() AND fecha_fin>=CURDATE() ORDER BY fecha_fin DESC LIMIT 1`,
-    [usuarioId, tipo]
-  );
-  return rows[0] || null;
+  const today = new Date().toISOString().split('T')[0];
+  
+  const { data: polizas, error } = await supabase
+    .from('polizas')
+    .select('*')
+    .eq('usuario_id', usuarioId)
+    .eq('tipo', tipo)
+    .lte('fecha_inicio', today)
+    .gte('fecha_fin', today)
+    .order('fecha_fin', { ascending: false })
+    .limit(1);
+
+  if (error) return null;
+  return polizas && polizas.length > 0 ? polizas[0] : null;
 }
 
 async function enviarMail(titulo, htmlContent, archivos = []) {
