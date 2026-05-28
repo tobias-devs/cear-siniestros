@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, FileCheck, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Users, ShieldCheck, TrendingUp } from 'lucide-react';
 import Layout from '../../components/Layout';
 import api from '../../api';
 

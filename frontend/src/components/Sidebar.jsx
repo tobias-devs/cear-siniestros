@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CearLogo from './CearLogo';
 import api from '../api';
 import {
   LayoutDashboard, Users, LogOut, Shield,
-  Car, Flame, GlassWater, Scale, Plane
+  Car, Flame, GlassWater, Scale, Plane, Settings
 } from 'lucide-react';
 
-const adminLinks = [
+const adminMainLinks = [
   { to: '/admin', label: 'Panel', icon: LayoutDashboard, end: true },
   { to: '/admin/clientes', label: 'Clientes', icon: Users },
+  { to: '/admin/configuracion', label: 'Configuración', icon: Settings },
 ];
 
 const allClienteLinks = [
@@ -47,7 +48,7 @@ export default function Sidebar() {
   }, [user]);
 
   const links = user?.rol === 'admin'
-    ? adminLinks
+    ? adminMainLinks
     : polizas === null
       ? allClienteLinks
       : getVisibleLinks(polizas);
@@ -64,7 +65,9 @@ export default function Sidebar() {
     <aside className="w-64 min-h-screen bg-[#1B3568] flex flex-col fixed top-0 left-0 z-40 shadow-xl">
       {/* Logo area */}
       <div className="flex flex-col items-center py-8 px-4 border-b border-white/10">
-        <CearLogo size={72} dark />
+        <Link to={user?.rol === 'admin' ? '/admin' : '/cliente'} className="hover:opacity-80 transition-opacity">
+          <CearLogo size={72} dark />
+        </Link>
       </div>
 
       {/* User badge */}

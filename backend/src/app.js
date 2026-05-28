@@ -17,10 +17,11 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/api/auth',        require('./routes/auth'));
-app.use('/api/usuarios',    require('./routes/usuarios'));
-app.use('/api/polizas',     require('./routes/polizas'));
-app.use('/api/formularios', require('./routes/formularios'));
+app.use('/api/auth',           require('./routes/auth'));
+app.use('/api/usuarios',       require('./routes/usuarios'));
+app.use('/api/polizas',        require('./routes/polizas'));
+app.use('/api/formularios',    require('./routes/formularios'));
+app.use('/api/configuracion',  require('./routes/configuracion'));
 
 app.use((err, req, res, _next) => {
   console.error(err);

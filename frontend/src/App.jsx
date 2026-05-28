@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/admin/Dashboard';
 import Clientes from './pages/admin/Clientes';
 import ClienteDetalle from './pages/admin/ClienteDetalle';
+import Configuracion from './pages/admin/Configuracion';
 import ClienteDashboard from './pages/cliente/Dashboard';
 import FormAutomotores from './pages/formularios/Automotores';
 import FormIncendio from './pages/formularios/Incendio';
@@ -29,6 +30,7 @@ function AppRoutes() {
       <Route path="/admin" element={<RequireAuth role="admin"><AdminDashboard /></RequireAuth>} />
       <Route path="/admin/clientes" element={<RequireAuth role="admin"><Clientes /></RequireAuth>} />
       <Route path="/admin/clientes/:id" element={<RequireAuth role="admin"><ClienteDetalle /></RequireAuth>} />
+      <Route path="/admin/configuracion" element={<RequireAuth role="admin"><Configuracion /></RequireAuth>} />
 
       {/* Cliente */}
       <Route path="/cliente" element={<RequireAuth role="cliente"><ClienteDashboard /></RequireAuth>} />

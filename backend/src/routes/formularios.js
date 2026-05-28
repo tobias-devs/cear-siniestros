@@ -60,12 +60,34 @@ async function getPolizaVigente(usuarioId, tipo) {
   return polizas && polizas.length > 0 ? polizas[0] : null;
 }
 
+async function getDestinatarios() {
+  const { data } = await supabase
+    .from('configuracion')
+    .select('valor')
+    .eq('clave', 'empleados_emails')
+    .single();
+
+  if (data?.valor) {
+    try {
+      const asesores = JSON.parse(data.valor);
+      const emails = asesores.map(a => a.email).filter(Boolean);
+      if (emails.length > 0) return emails;
+    } catch {
+      // formato antiguo CSV
+      const emails = data.valor.split(',').map(e => e.trim()).filter(Boolean);
+      if (emails.length > 0) return emails;
+    }
+  }
+
+  return (process.env.EMPLEADOS_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
+}
+
 async function enviarMail(titulo, htmlContent, archivos = []) {
   const transporter = getTransporter();
-  const destinos = (process.env.EMPLEADOS_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
+  const destinos = await getDestinatarios();
 
   if (destinos.length === 0) {
-    console.error('[MAIL] No hay destinatarios configurados en EMPLEADOS_EMAILS');
+    console.error('[MAIL] No hay destinatarios configurados');
     throw new Error('No hay destinatarios configurados');
   }
 
