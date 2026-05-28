@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CearLogo from './CearLogo';
+import api from '../api';
 import {
-  LayoutDashboard, Users, FileText, LogOut, Shield,
+  LayoutDashboard, Users, LogOut, Shield,
   Car, Flame, GlassWater, Scale, Plane
 } from 'lucide-react';
 
@@ -11,19 +13,44 @@ const adminLinks = [
   { to: '/admin/clientes', label: 'Clientes', icon: Users },
 ];
 
-const clienteLinks = [
-  { to: '/cliente', label: 'Mis Formularios', icon: LayoutDashboard, end: true },
-  { to: '/formulario/automotores', label: 'Automotores', icon: Car },
-  { to: '/formulario/incendio', label: 'Incendio', icon: Flame },
-  { to: '/formulario/cristales', label: 'Cristales', icon: GlassWater },
-  { to: '/formulario/rc', label: 'Resp. Civil', icon: Scale },
-  { to: '/formulario/aviso-viaje', label: 'Aviso de Viaje', icon: Plane },
+const allClienteLinks = [
+  { to: '/cliente', label: 'Mis Formularios', icon: LayoutDashboard, end: true, key: 'dashboard' },
+  { to: '/formulario/automotores', label: 'Automotores', icon: Car, key: 'automotores' },
+  { to: '/formulario/incendio', label: 'Incendio', icon: Flame, key: 'incendio' },
+  { to: '/formulario/cristales', label: 'Cristales', icon: GlassWater, key: 'cristales' },
+  { to: '/formulario/rc', label: 'Resp. Civil', icon: Scale, key: 'rc' },
+  { to: '/formulario/aviso-viaje', label: 'Aviso de Viaje', icon: Plane, key: 'aviso_viaje' },
 ];
+
+function getVisibleLinks(polizas) {
+  const has = {
+    automotores: polizas.some(p => p.tipo === 'automotores'),
+    incendio: polizas.some(p => p.tipo === 'integral_comercio' && p.cubre_incendio),
+    cristales: polizas.some(p => p.tipo === 'integral_comercio' && p.cubre_cristales),
+    rc: polizas.some(p => p.tipo === 'integral_comercio' && p.cubre_rc),
+    aviso_viaje: polizas.some(p => p.tipo === 'integral_comercio' && p.cubre_aviso_viaje),
+  };
+  return allClienteLinks.filter(link => link.key === 'dashboard' || has[link.key]);
+}
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const links = user?.rol === 'admin' ? adminLinks : clienteLinks;
+  const [polizas, setPolizas] = useState(null);
+
+  useEffect(() => {
+    if (user?.rol !== 'admin') {
+      api.get('/polizas/mis-polizas')
+        .then(r => setPolizas(r.data))
+        .catch(() => setPolizas([]));
+    }
+  }, [user]);
+
+  const links = user?.rol === 'admin'
+    ? adminLinks
+    : polizas === null
+      ? allClienteLinks
+      : getVisibleLinks(polizas);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 

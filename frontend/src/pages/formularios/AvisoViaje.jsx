@@ -21,11 +21,11 @@ export default function FormAvisoViaje() {
         <FInput label="Cantidad de docentes" name="cantidad_docentes" type="number" min="1" required />
       </div>
 
-      <Divider label="Transporte" />
-      <FInput label="Empresa de transporte" name="empresa_transporte" placeholder="Nombre de la empresa" required />
+      <Divider label="Transporte (opcional)" />
+      <FInput label="Empresa de transporte" name="empresa_transporte" placeholder="Nombre de la empresa" />
       <div className="grid grid-cols-2 gap-4">
-        <FInput label="Nombre del conductor" name="conductor_nombre" required />
-        <FInput label="N° de licencia" name="conductor_licencia" required />
+        <FInput label="Nombre del conductor" name="conductor_nombre" />
+        <FInput label="N° de licencia" name="conductor_licencia" />
       </div>
     </FormBase>
   );

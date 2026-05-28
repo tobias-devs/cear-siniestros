@@ -14,6 +14,7 @@ function getTransporter() {
     port: Number(process.env.MAIL_PORT),
     secure: false,
     auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+    tls: { rejectUnauthorized: false },
   });
 }
 
@@ -44,7 +45,7 @@ function buildHtml(titulo, cliente, numeroPoliza, campos) {
 
 async function getPolizaVigente(usuarioId, tipo) {
   const today = new Date().toISOString().split('T')[0];
-  
+
   const { data: polizas, error } = await supabase
     .from('polizas')
     .select('*')
@@ -63,6 +64,11 @@ async function enviarMail(titulo, htmlContent, archivos = []) {
   const transporter = getTransporter();
   const destinos = (process.env.EMPLEADOS_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
 
+  if (destinos.length === 0) {
+    console.error('[MAIL] No hay destinatarios configurados en EMPLEADOS_EMAILS');
+    throw new Error('No hay destinatarios configurados');
+  }
+
   const attachments = archivos.map((f, i) => ({
     filename: f.originalname || `adjunto_${i + 1}`,
     content: f.buffer,
@@ -70,133 +76,160 @@ async function enviarMail(titulo, htmlContent, archivos = []) {
   }));
 
   await transporter.sendMail({
-    from: process.env.MAIL_FROM,
+    from: process.env.MAIL_FROM || process.env.MAIL_USER,
     to: destinos.join(','),
     subject: `[CEAR] Nueva ${titulo}`,
     html: htmlContent,
     attachments,
   });
+
+  console.log(`[MAIL] Enviado: "${titulo}" → ${destinos.join(', ')}`);
 }
 
 // POST /api/formularios/automotores
 router.post('/automotores', upload.array('archivos', 5), async (req, res) => {
-  const { patente, fecha_siniestro, descripcion, conductor_nombre, conductor_dni,
-    conductor_licencia, hubo_terceros, tercero_nombre, tercero_patente, tercero_aseguradora } = req.body;
+  try {
+    const { patente, fecha_siniestro, descripcion, conductor_nombre, conductor_dni,
+      conductor_licencia, hubo_terceros, tercero_nombre, tercero_patente, tercero_aseguradora } = req.body;
 
-  const poliza = await getPolizaVigente(req.user.id, 'automotores');
-  if (!poliza) return res.status(403).json({ message: 'No tenés una póliza de automotores vigente' });
+    const poliza = await getPolizaVigente(req.user.id, 'automotores');
+    if (!poliza) return res.status(403).json({ message: 'No tenés una póliza de automotores vigente' });
 
-  const cliente = `${req.user.nombre} ${req.user.apellido}`;
-  const campos = {
-    'Patente del vehículo': patente,
-    'Fecha del siniestro': fecha_siniestro,
-    'Descripción': descripcion,
-    'Conductor (Nombre)': conductor_nombre,
-    'Conductor (DNI)': conductor_dni,
-    'Conductor (N° Licencia)': conductor_licencia,
-    '¿Hubo terceros?': hubo_terceros === 'true' ? 'Sí' : 'No',
-    'Tercero (Nombre)': tercero_nombre,
-    'Tercero (Patente)': tercero_patente,
-    'Tercero (Aseguradora)': tercero_aseguradora,
-  };
+    const cliente = `${req.user.nombre} ${req.user.apellido}`;
+    const campos = {
+      'Patente del vehículo': patente,
+      'Fecha del siniestro': fecha_siniestro,
+      'Descripción': descripcion,
+      'Conductor (Nombre)': conductor_nombre,
+      'Conductor (DNI)': conductor_dni,
+      'Conductor (N° Licencia)': conductor_licencia,
+      '¿Hubo terceros?': hubo_terceros === 'true' ? 'Sí' : 'No',
+      'Tercero (Nombre)': tercero_nombre,
+      'Tercero (Patente)': tercero_patente,
+      'Tercero (Aseguradora)': tercero_aseguradora,
+    };
 
-  const html = buildHtml('Denuncia de Siniestro · Automotores', cliente, poliza.numero_poliza, campos);
-  await enviarMail('Denuncia de Siniestro · Automotores', html, req.files || []);
-  res.json({ message: 'Denuncia enviada exitosamente' });
+    const html = buildHtml('Denuncia de Siniestro · Automotores', cliente, poliza.numero_poliza, campos);
+    await enviarMail('Denuncia de Siniestro · Automotores', html, req.files || []);
+    res.json({ message: 'Denuncia enviada exitosamente' });
+  } catch (err) {
+    console.error('[/automotores]', err.message);
+    res.status(500).json({ message: 'Error al enviar la denuncia. Por favor intentá nuevamente.' });
+  }
 });
 
 // POST /api/formularios/incendio
 router.post('/incendio', upload.array('archivos', 5), async (req, res) => {
-  const { fecha_siniestro, direccion, descripcion, hubo_victimas, bienes_afectados, intervino_bomberos } = req.body;
+  try {
+    const { fecha_siniestro, direccion, descripcion, hubo_victimas, bienes_afectados, intervino_bomberos } = req.body;
 
-  const poliza = await getPolizaVigente(req.user.id, 'integral_comercio');
-  if (!poliza || !poliza.cubre_incendio) return res.status(403).json({ message: 'Tu póliza no cubre incendio' });
+    const poliza = await getPolizaVigente(req.user.id, 'integral_comercio');
+    if (!poliza || !poliza.cubre_incendio) return res.status(403).json({ message: 'Tu póliza no cubre incendio' });
 
-  const cliente = `${req.user.nombre} ${req.user.apellido}`;
-  const campos = {
-    'Fecha del siniestro': fecha_siniestro,
-    'Dirección del hecho': direccion,
-    'Descripción': descripcion,
-    '¿Hubo víctimas?': hubo_victimas === 'true' ? 'Sí' : 'No',
-    'Bienes afectados': bienes_afectados,
-    '¿Intervino bomberos?': intervino_bomberos === 'true' ? 'Sí' : 'No',
-  };
+    const cliente = `${req.user.nombre} ${req.user.apellido}`;
+    const campos = {
+      'Fecha del siniestro': fecha_siniestro,
+      'Dirección del hecho': direccion,
+      'Descripción': descripcion,
+      '¿Hubo víctimas?': hubo_victimas === 'true' ? 'Sí' : 'No',
+      'Bienes afectados': bienes_afectados,
+      '¿Intervino bomberos?': intervino_bomberos === 'true' ? 'Sí' : 'No',
+    };
 
-  const html = buildHtml('Denuncia de Siniestro · Incendio', cliente, poliza.numero_poliza, campos);
-  await enviarMail('Denuncia de Siniestro · Incendio', html, req.files || []);
-  res.json({ message: 'Denuncia enviada exitosamente' });
+    const html = buildHtml('Denuncia de Siniestro · Incendio', cliente, poliza.numero_poliza, campos);
+    await enviarMail('Denuncia de Siniestro · Incendio', html, req.files || []);
+    res.json({ message: 'Denuncia enviada exitosamente' });
+  } catch (err) {
+    console.error('[/incendio]', err.message);
+    res.status(500).json({ message: 'Error al enviar la denuncia. Por favor intentá nuevamente.' });
+  }
 });
 
 // POST /api/formularios/cristales
 router.post('/cristales', upload.array('archivos', 5), async (req, res) => {
-  const { fecha_siniestro, descripcion, tipo_cristal, dimensiones, causa_identificada } = req.body;
+  try {
+    const { fecha_siniestro, descripcion, tipo_cristal, dimensiones, causa_identificada } = req.body;
 
-  const poliza = await getPolizaVigente(req.user.id, 'integral_comercio');
-  if (!poliza || !poliza.cubre_cristales) return res.status(403).json({ message: 'Tu póliza no cubre cristales' });
+    const poliza = await getPolizaVigente(req.user.id, 'integral_comercio');
+    if (!poliza || !poliza.cubre_cristales) return res.status(403).json({ message: 'Tu póliza no cubre cristales' });
 
-  const cliente = `${req.user.nombre} ${req.user.apellido}`;
-  const campos = {
-    'Fecha del siniestro': fecha_siniestro,
-    'Descripción': descripcion,
-    'Tipo de cristal': tipo_cristal,
-    'Dimensiones aproximadas': dimensiones,
-    'Causa identificada': causa_identificada,
-  };
+    const cliente = `${req.user.nombre} ${req.user.apellido}`;
+    const campos = {
+      'Fecha del siniestro': fecha_siniestro,
+      'Descripción': descripcion,
+      'Tipo de cristal': tipo_cristal,
+      'Dimensiones aproximadas': dimensiones,
+      'Causa identificada': causa_identificada,
+    };
 
-  const html = buildHtml('Denuncia de Siniestro · Cristales', cliente, poliza.numero_poliza, campos);
-  await enviarMail('Denuncia de Siniestro · Cristales', html, req.files || []);
-  res.json({ message: 'Denuncia enviada exitosamente' });
+    const html = buildHtml('Denuncia de Siniestro · Cristales', cliente, poliza.numero_poliza, campos);
+    await enviarMail('Denuncia de Siniestro · Cristales', html, req.files || []);
+    res.json({ message: 'Denuncia enviada exitosamente' });
+  } catch (err) {
+    console.error('[/cristales]', err.message);
+    res.status(500).json({ message: 'Error al enviar la denuncia. Por favor intentá nuevamente.' });
+  }
 });
 
 // POST /api/formularios/rc
 router.post('/rc', upload.array('archivos', 5), async (req, res) => {
-  const { fecha_siniestro, descripcion, tercero_nombre, tercero_dni, tercero_direccion,
-    monto_reclamado, actuacion_judicial } = req.body;
+  try {
+    const { fecha_siniestro, descripcion, tercero_nombre, tercero_dni, tercero_direccion,
+      monto_reclamado, actuacion_judicial } = req.body;
 
-  const poliza = await getPolizaVigente(req.user.id, 'integral_comercio');
-  if (!poliza || !poliza.cubre_rc) return res.status(403).json({ message: 'Tu póliza no cubre Responsabilidad Civil' });
+    const poliza = await getPolizaVigente(req.user.id, 'integral_comercio');
+    if (!poliza || !poliza.cubre_rc) return res.status(403).json({ message: 'Tu póliza no cubre Responsabilidad Civil' });
 
-  const cliente = `${req.user.nombre} ${req.user.apellido}`;
-  const campos = {
-    'Fecha del siniestro': fecha_siniestro,
-    'Descripción': descripcion,
-    'Tercero reclamante (Nombre)': tercero_nombre,
-    'Tercero reclamante (DNI)': tercero_dni,
-    'Tercero reclamante (Dirección)': tercero_direccion,
-    'Monto reclamado': monto_reclamado,
-    '¿Actuación judicial?': actuacion_judicial === 'true' ? 'Sí' : 'No',
-  };
+    const cliente = `${req.user.nombre} ${req.user.apellido}`;
+    const campos = {
+      'Fecha del siniestro': fecha_siniestro,
+      'Descripción': descripcion,
+      'Tercero reclamante (Nombre)': tercero_nombre,
+      'Tercero reclamante (DNI)': tercero_dni,
+      'Tercero reclamante (Dirección)': tercero_direccion,
+      'Monto reclamado': monto_reclamado,
+      '¿Actuación judicial?': actuacion_judicial === 'true' ? 'Sí' : 'No',
+    };
 
-  const html = buildHtml('Denuncia de Responsabilidad Civil', cliente, poliza.numero_poliza, campos);
-  await enviarMail('Denuncia de Responsabilidad Civil', html, req.files || []);
-  res.json({ message: 'Denuncia enviada exitosamente' });
+    const html = buildHtml('Denuncia de Responsabilidad Civil', cliente, poliza.numero_poliza, campos);
+    await enviarMail('Denuncia de Responsabilidad Civil', html, req.files || []);
+    res.json({ message: 'Denuncia enviada exitosamente' });
+  } catch (err) {
+    console.error('[/rc]', err.message);
+    res.status(500).json({ message: 'Error al enviar la denuncia. Por favor intentá nuevamente.' });
+  }
 });
 
 // POST /api/formularios/aviso-viaje
 router.post('/aviso-viaje', upload.array('archivos', 5), async (req, res) => {
-  const { institucion, fecha_salida, fecha_regreso, destino,
-    cantidad_alumnos, cantidad_docentes, empresa_transporte,
-    conductor_nombre, conductor_licencia } = req.body;
+  try {
+    const { institucion, fecha_salida, fecha_regreso, destino,
+      cantidad_alumnos, cantidad_docentes, empresa_transporte,
+      conductor_nombre, conductor_licencia } = req.body;
 
-  const poliza = await getPolizaVigente(req.user.id, 'integral_comercio');
-  if (!poliza || !poliza.cubre_aviso_viaje) return res.status(403).json({ message: 'Tu póliza no cubre Aviso de Viaje' });
+    const poliza = await getPolizaVigente(req.user.id, 'integral_comercio');
+    if (!poliza || !poliza.cubre_aviso_viaje) return res.status(403).json({ message: 'Tu póliza no cubre Aviso de Viaje' });
 
-  const cliente = `${req.user.nombre} ${req.user.apellido}`;
-  const campos = {
-    'Institución educativa': institucion,
-    'Fecha de salida': fecha_salida,
-    'Fecha de regreso': fecha_regreso,
-    'Destino': destino,
-    'Cantidad de alumnos': cantidad_alumnos,
-    'Cantidad de docentes': cantidad_docentes,
-    'Empresa de transporte': empresa_transporte,
-    'Conductor (Nombre)': conductor_nombre,
-    'Conductor (N° Licencia)': conductor_licencia,
-  };
+    const cliente = `${req.user.nombre} ${req.user.apellido}`;
+    const campos = {
+      'Institución educativa': institucion,
+      'Fecha de salida': fecha_salida,
+      'Fecha de regreso': fecha_regreso,
+      'Destino': destino,
+      'Cantidad de alumnos': cantidad_alumnos,
+      'Cantidad de docentes': cantidad_docentes,
+      'Empresa de transporte': empresa_transporte,
+      'Conductor (Nombre)': conductor_nombre,
+      'Conductor (N° Licencia)': conductor_licencia,
+    };
 
-  const html = buildHtml('Aviso de Viaje Escolar', cliente, poliza.numero_poliza, campos);
-  await enviarMail('Aviso de Viaje Escolar', html, req.files || []);
-  res.json({ message: 'Aviso de viaje enviado exitosamente' });
+    const html = buildHtml('Aviso de Viaje Escolar', cliente, poliza.numero_poliza, campos);
+    await enviarMail('Aviso de Viaje Escolar', html, req.files || []);
+    res.json({ message: 'Aviso de viaje enviado exitosamente' });
+  } catch (err) {
+    console.error('[/aviso-viaje]', err.message);
+    res.status(500).json({ message: 'Error al enviar el aviso. Por favor intentá nuevamente.' });
+  }
 });
 
 module.exports = router;

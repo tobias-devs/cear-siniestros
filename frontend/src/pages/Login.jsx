@@ -32,7 +32,7 @@ export default function Login() {
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center px-16 relative overflow-hidden">
         <div className="absolute inset-0 opacity-5"
           style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
-        <div className="relative z-10 text-center">
+        <div className="relative z-10 flex flex-col items-center text-center">
           <CearLogo size={180} dark />
           <h1 className="text-white text-3xl font-bold mt-8 leading-snug">
             Sistema de Gestión<br />

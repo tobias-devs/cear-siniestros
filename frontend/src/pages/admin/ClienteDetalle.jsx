@@ -139,10 +139,10 @@ export default function ClienteDetalle() {
           <h2 className="font-semibold text-slate-700 text-sm uppercase tracking-wider mb-2">Datos personales</h2>
           <div className="grid grid-cols-2 gap-4">
             <Input label="Nombre *" value={form.nombre} onChange={e => setF('nombre', e.target.value)} required />
-            <Input label="Apellido *" value={form.apellido} onChange={e => setF('apellido', e.target.value)} required />
+            <Input label="Apellido" value={form.apellido} onChange={e => setF('apellido', e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="CUIL" value={form.cuil || ''} onChange={e => setF('cuil', e.target.value)} placeholder="20-12345678-9" />
+            <Input label="DNI/CUIT" value={form.cuil || ''} onChange={e => setF('cuil', e.target.value)} placeholder="20-12345678-9" />
             <Input label="Email" type="email" value={form.email || ''} onChange={e => setF('email', e.target.value)} />
           </div>
           <Input label="Dirección" value={form.direccion || ''} onChange={e => setF('direccion', e.target.value)} />
